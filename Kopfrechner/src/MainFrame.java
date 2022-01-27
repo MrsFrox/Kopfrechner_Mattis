@@ -24,6 +24,7 @@ import javax.swing.JComponent;
 import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
@@ -365,6 +366,7 @@ public class MainFrame extends JFrame {
 								thread.stop();
 								getTaskLabel().setText("Du hast es geschafft");
 								getinfoText().setText("Du hast " + fehlerCounter + " Frage/n falsch beantwortet");
+								JOptionPane.showInputDialog("Bitte gebe dein Namen ein");
 								
 								
 							}
@@ -418,7 +420,7 @@ public class MainFrame extends JFrame {
 				@Override
 				public String getColumnName(int column) {
 				
-					return "";//	Wertung.class.getFields()[column].getName();
+					return Wertung.class.getDeclaredFields()[column].getName();
 				}
 
 				@Override
@@ -427,7 +429,7 @@ public class MainFrame extends JFrame {
 					String columnName = getColumnName(columnIndex);
 
 					try {
-						return wertung.getClass().getField(columnName).get(wertung);
+						return wertung.getClass().getDeclaredField(columnName).get(wertung);
 					} catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException
 							| SecurityException e) {
 						// TODO Auto-generated catch block

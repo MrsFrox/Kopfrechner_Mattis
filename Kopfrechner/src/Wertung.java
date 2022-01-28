@@ -2,9 +2,17 @@ import java.util.List;
 
 public class Wertung {
 	
+	
+	@DisplayName(name = "Anzahl Fragen")
 	protected int anzahlFragen;
+	
+	@DisplayName(name = "Anzahl Fehler")
 	protected int anzahlFehler;
+	
+	@DisplayName(name = "Name")
 	protected String name ;
+	
+	@DisplayName(name = "Operatoren")
 	protected List<String> operatoren ;
 	
 	

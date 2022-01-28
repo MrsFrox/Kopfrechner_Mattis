@@ -7,9 +7,10 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,17 +27,17 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.table.AbstractTableModel;
-import javax.swing.table.DefaultTableColumnModel;
-import javax.swing.table.JTableHeader;
-import javax.swing.table.TableColumn;
-import javax.swing.table.TableColumnModel;
-import javax.swing.table.TableModel;
+import javax.swing.table.DefaultTableModel;
+
+import org.apache.commons.csv.CSVRecord;
 
 public class MainFrame extends JFrame {
+
+	private static final int COLUMN_SIZE = 4;
 
 	protected JPanel mainPanel = null;
 
@@ -58,7 +59,7 @@ public class MainFrame extends JFrame {
 
 	protected JButton startButton;
 
-	protected JTable wertungTable;
+	protected static JTable wertungTable;
 
 	private static List<String> checkboxList;
 
@@ -127,6 +128,27 @@ public class MainFrame extends JFrame {
 		setSize(300, 500);
 		getContentPane().add(getMainPanel(), BorderLayout.CENTER);
 		counter = 0;
+		
+		addWindowListener(new WindowAdapter()
+        {
+            @Override
+            public void windowClosing(WindowEvent e)
+            {
+                System.out.println("Closed");
+                
+                List<List<String>> data = new ArrayList<>();
+    			for (int i = 0; i < getWertungTable().getRowCount(); i++) {
+    				List<String> row = new ArrayList<>();
+    				for(int j = 0; j < getWertungTable().getColumnCount(); j++) {
+    					row.add( getWertungTable().getValueAt(i, j).toString());
+    				}
+    				data.add(row);
+    				
+    			}
+    			Controller.getInstance().createCSVFile(data);
+                e.getWindow().dispose();
+            }
+        });
 
 	}
 
@@ -165,10 +187,9 @@ public class MainFrame extends JFrame {
 			gbc_TablePanel.gridy = 1;
 			gbc_TablePanel.gridx = 1;
 			gbc_TablePanel.fill = GridBagConstraints.BOTH;
-			;
 			gbc_TablePanel.weightx = 1;
-			gbc_TablePanel.weighty = 1;
-			mainPanel.add(getWertungTable(), gbc_TablePanel);
+			gbc_TablePanel.weighty = 2;
+			mainPanel.add(new JScrollPane(getWertungTable()), gbc_TablePanel);
 
 		}
 		return mainPanel;
@@ -366,9 +387,15 @@ public class MainFrame extends JFrame {
 								thread.stop();
 								getTaskLabel().setText("Du hast es geschafft");
 								getinfoText().setText("Du hast " + fehlerCounter + " Frage/n falsch beantwortet");
-								JOptionPane.showInputDialog("Bitte gebe dein Namen ein");
-								
-								
+								String name = JOptionPane.showInputDialog("Bitte gebe dein Namen ein");
+								Wertung w = new Wertung();
+								w.setName(name);
+								w.setAnzahlFehler(fehlerCounter);
+								w.setAnzahlFragen(Integer.valueOf(getSpinnerTextField().getText().toString()));
+								w.setOperatoren(checkboxList);
+								addWertung(w);
+								wertungTable.repaint();
+								Controller.getInstance().saveWertung(w);
 							}
 
 							// Eingabe korrekt
@@ -403,62 +430,49 @@ public class MainFrame extends JFrame {
 
 	public JTable getWertungTable() {
 		if (wertungTable == null) {
-			TableModel model = new AbstractTableModel() {
 
-				@Override
-				public int getRowCount() {
-					// TODO Auto-generated method stub
-					return wertungen.size();
-				}
-
-				@Override
-				public int getColumnCount() {
-					// TODO Auto-generated method stub
-					return Wertung.class.getDeclaredFields().length;
-				}
-				
-				@Override
-				public String getColumnName(int column) {
-				
-					return Wertung.class.getDeclaredFields()[column].getName();
-				}
-
-				@Override
-				public Object getValueAt(int rowIndex, int columnIndex) {
-					Wertung wertung = wertungen.get(rowIndex);
-					String columnName = getColumnName(columnIndex);
-
-					try {
-						return wertung.getClass().getDeclaredField(columnName).get(wertung);
-					} catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException
-							| SecurityException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					return null;
-				}
-
-			};
-			TableColumnModel cModel = new DefaultTableColumnModel();
-			Stream.of(Wertung.class.getDeclaredFields()).forEach(e -> {
-				TableColumn c = new TableColumn();
-				c.setHeaderValue(e.getName());
-				cModel.addColumn(c);
-			});
+			List<CSVRecord> records = Controller.getInstance().getRecords();
+			List<List<String>> collect = records.stream().map(CSVRecord::toList).collect(Collectors.toList());
 			
+			Object[][] content = new Object[records.size()][COLUMN_SIZE];
+			for(int i = 0; i  < records.size(); i++) {
+				List<String> row = collect.get(i);
+				for(int j = 0; j  < COLUMN_SIZE; j++) {
+					content[i][j] = row.get(j);
+				}
+			}
+			
+			Object[] columns = Stream.of( Wertung.class.getDeclaredFields()).map(f -> f.getName()).toArray();
+			
+			DefaultTableModel model = new DefaultTableModel(content, columns);
 			
 			wertungTable = new JTable(model);
-			wertungTable.setTableHeader(new JTableHeader(cModel));
-			Wertung e = new Wertung();
-			e.setName("Name");
-			e.setAnzahlFehler(1);
-			e.setAnzahlFragen(4);
-			e.setOperatoren(Arrays.asList("+", "-"));
-			wertungen.add(e);
-			wertungTable.repaint();
+//			JTableHeader tableHeader = new JTableHeader(cModel);
+//			wertungTable.setTableHeader(tableHeader);
+//			Wertung w = new Wertung();
+//			w.setName("test");
+//			w.setAnzahlFehler(fehlerCounter);
+//			w.setAnzahlFragen(Integer.valueOf(getSpinnerTextField().getText().toString()));
+//			w.setOperatoren(checkboxList);
+//			wertungen.add(w);
+
 		}
 		return wertungTable;
 	}
+	
+	
+	
+	public static final void CalculateTotal(){
+	    ArrayList<String> numdata = new ArrayList<String>();
+
+	  for(int count = 0; count <= wertungTable.getRowCount(); count++){
+	      numdata.add(wertungTable.getValueAt(count, 0).toString());
+
+	  }
+	  System.out.println(numdata); 
+	}
+	
+	
 
 	public boolean getshouldCount() {
 
@@ -486,6 +500,19 @@ public class MainFrame extends JFrame {
 		return null;
 
 	}
+	
+	
+	public void addWertung(Wertung w) {
+		int s0 = w.getAnzahlFehler();
+		int s1 = w.getAnzahlFragen();
+		String s2 = w.getName();
+		String s3 = w.getOperatoren().stream().collect(Collectors.joining(","));
+		DefaultTableModel model = (DefaultTableModel) getWertungTable().getModel();
+		model.addRow(new Object[] {s1, s0,s2,s3});
+	
+		
+		
+	}
 
 	public void update(int s, int minute, int m) {
 		String sec = Integer.toString(s);
@@ -497,5 +524,6 @@ public class MainFrame extends JFrame {
 
 		getTimerTextField().setText(min + ":" + sec + "," + mil);
 	}
-
+	
+	
 }
